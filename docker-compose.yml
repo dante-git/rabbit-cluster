@@ -1,0 +1,96 @@
+version: '3'
+
+services:
+  rabbitmq1:
+    image: rabbitmq:3-management
+    hostname: rabbitmq1
+    depends_on:
+    - fluentd
+    volumes:
+      - ./mnesia1:/var/lib/rabbitmq
+    ports:
+      - 15672:15672
+    environment:
+      - RABBITMQ_ERLANG_COOKIE=123123
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+      - RABBITMQ_DEFAULT_VHOST=rabbitmq1
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: rabbitmq1
+
+  rabbitmq2:
+    #image: rabbitmq:3-management
+    build: .
+    hostname: rabbitmq2
+    depends_on:
+    - fluentd
+    volumes:
+      - ./mnesia2:/var/lib/rabbitmq
+    ports:
+      - 15673:15672
+    environment:
+      - RABBITMQ_ERLANG_COOKIE=123123
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+      - RABBITMQ_DEFAULT_VHOST=rabbitmq1
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: rabbitmq2
+
+  rabbitmq3:
+    #image: rabbitmq:3-management
+    build: .
+    hostname: rabbitmq3
+    depends_on:
+    - fluentd
+    volumes:
+      - ./mnesia3:/var/lib/rabbitmq
+    ports:
+      - 15674:15672
+    environment:
+      - RABBITMQ_ERLANG_COOKIE=123123
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+      - RABBITMQ_DEFAULT_VHOST=rabbitmq1
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: rabbitmq3
+
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  fluentd:
+    build: ./fluentd
+    volumes:
+    - ./fluentd/conf:/fluentd/etc
+    ports:
+    - "127.0.0.1:24224:24224"
+    - "127.0.0.1:24224:24224/udp"
+    depends_on:
+    - elasticsearch
+
+  elasticsearch:
+    image: elasticsearch:7.6.2
+    environment:
+    - discovery.type=single-node
+    - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    expose:
+    - 9200
+
+  kibana:
+    image: kibana:7.6.2
+    ports:
+    - "5601:5601"
+
