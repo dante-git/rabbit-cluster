@@ -4,6 +4,7 @@ services:
   rabbitmq1:
     image: rabbitmq:3-management
     hostname: rabbitmq1
+    restart: always
     depends_on:
     - fluentd
     volumes:
@@ -25,6 +26,7 @@ services:
     #image: rabbitmq:3-management
     build: .
     hostname: rabbitmq2
+    restart: always
     depends_on:
     - fluentd
     volumes:
@@ -46,6 +48,7 @@ services:
     #image: rabbitmq:3-management
     build: .
     hostname: rabbitmq3
+    restart: always
     depends_on:
     - fluentd
     volumes:
@@ -66,6 +69,7 @@ services:
 
   prometheus:
     image: prom/prometheus
+    restart: always
     ports:
       - 9090:9090
     volumes:
@@ -73,6 +77,7 @@ services:
 
   fluentd:
     build: ./fluentd
+    restart: always
     volumes:
     - ./fluentd/conf:/fluentd/etc
     ports:
@@ -83,6 +88,7 @@ services:
 
   elasticsearch:
     image: elasticsearch:7.6.2
+    restart: always
     environment:
     - discovery.type=single-node
     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -91,6 +97,7 @@ services:
 
   kibana:
     image: kibana:7.6.2
+    restart: always
     ports:
     - "5601:5601"
 
