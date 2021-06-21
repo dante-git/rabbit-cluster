@@ -32,12 +32,43 @@ scrape_configs:
     - targets:
       - rabbitmq1:15692
 
-  - job_name: 'rabbitmq2'
-    static_configs:
-    - targets:
-      - rabbitmq2:15692
 
-  - job_name: 'rabbitmq3'
-    static_configs:
-    - targets:
-      - rabbitmq3:15692
+  # Create a job for Docker daemons.
+#  - job_name: 'docker'
+#    dockerswarm_sd_configs:
+#      - host: unix:///var/run/docker.sock
+#        role: nodes
+#    relabel_configs:
+#      # Fetch metrics on port 9323.
+#      - source_labels: [__meta_dockerswarm_node_address]
+#        target_label: __address__
+#        replacement: $1:9323
+#      # Set hostname as instance label
+#      - source_labels: [__meta_dockerswarm_node_hostname]
+#        target_label: instance
+
+  - job_name: 'swarm-services'
+    dockerswarm_sd_configs:
+      - host: unix:///var/run/docker.sock
+      # - host: http://dockerd:2375
+        role: services
+    relabel_configs:
+      # Only keep containers that have a `prometheus-enable-service` label.
+      - source_labels: [__meta_dockerswarm_service_label_prometheus_enable_service]
+        regex: .+
+        action: keep
+      # Use the task labels that are prefixed by `prometheus-`.
+      - regex: __meta_dockerswarm_service_label_prometheus_(.+)
+        action: labelmap
+        replacement: $1
+
+
+#  - job_name: 'rabbitmq2'
+#    static_configs:
+#    - targets:
+#      - rabbitmq2:15692
+
+#  - job_name: 'rabbitmq3'
+#    static_configs:
+#    - targets:
+#      - rabbitmq3:15692

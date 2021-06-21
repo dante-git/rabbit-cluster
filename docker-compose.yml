@@ -1,14 +1,14 @@
-version: '3'
+version: '3.3'
 
 services:
   rabbitmq1:
     image: rabbitmq:3-management
     hostname: rabbitmq1
-    restart: always
-    depends_on:
-    - fluentd
-    volumes:
-      - ./mnesia1:/var/lib/rabbitmq
+#    restart: always
+#    depends_on:
+#    - fluentd
+#    volumes:
+#      - /mnesia1:/var/lib/rabbitmq
     ports:
       - 15672:15672
     environment:
@@ -16,88 +16,149 @@ services:
       - RABBITMQ_DEFAULT_USER=admin
       - RABBITMQ_DEFAULT_PASS=admin
       - RABBITMQ_DEFAULT_VHOST=rabbitmq1
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: localhost:24224
-        tag: rabbitmq1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.docker`)"
+      - "traefik.http.routers.rabbitmq.entrypoints=web"
+      - "traefik.http.routers.rabbitmq.service=rabbitmq"
+      - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
+#    logging:
+#      driver: "fluentd"
+#      options:
+#        fluentd-address: localhost:24224
+#        tag: rabbitmq1
+    networks:
+      - back
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
 
-  rabbitmq2:
-    #image: rabbitmq:3-management
+  rabbitmq-cluster:
+#    #image: rabbitmq:3-management
+    image: rabbitmq-cluster
     build: .
-    hostname: rabbitmq2
-    restart: always
-    depends_on:
-    - fluentd
-    volumes:
-      - ./mnesia2:/var/lib/rabbitmq
-    ports:
-      - 15673:15672
+#    depends_on:
+#    - fluentd
+#    volumes:
+#      - /mnesia2:/var/lib/rabbitmq
+#    ports:
+#      - 15673:15672
     environment:
       - RABBITMQ_ERLANG_COOKIE=123123
       - RABBITMQ_DEFAULT_USER=admin
       - RABBITMQ_DEFAULT_PASS=admin
       - RABBITMQ_DEFAULT_VHOST=rabbitmq1
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: localhost:24224
-        tag: rabbitmq2
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.docker`)"
+    - "traefik.http.routers.rabbitmq.entrypoints=web"
+    - "traefik.http.routers.rabbitmq.service=rabbitmq"
+    - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
 
-  rabbitmq3:
-    #image: rabbitmq:3-management
-    build: .
-    hostname: rabbitmq3
-    restart: always
-    depends_on:
-    - fluentd
-    volumes:
-      - ./mnesia3:/var/lib/rabbitmq
-    ports:
-      - 15674:15672
-    environment:
-      - RABBITMQ_ERLANG_COOKIE=123123
-      - RABBITMQ_DEFAULT_USER=admin
-      - RABBITMQ_DEFAULT_PASS=admin
-      - RABBITMQ_DEFAULT_VHOST=rabbitmq1
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: localhost:24224
-        tag: rabbitmq3
+#    logging:
+#      driver: "fluentd"
+#      options:
+#        fluentd-address: localhost:24224
+#        tag: rabbitmq2
+    networks:
+      - back
+    deploy:
+      mode: replicated
+      replicas: 2
 
 
   prometheus:
     image: prom/prometheus
-    restart: always
+#    restart: always
     ports:
       - 9090:9090
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - back
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
 
-  fluentd:
-    build: ./fluentd
-    restart: always
+
+
+#  fluentd:
+#    image: registry.rebrainme.com/dante5/rbm-dkr-voting/efk_fluentd
+#    ports:
+#    - "24224:24224"
+#    - "24224:24224/udp"
+#    networks:
+#    - back
+#    deploy:
+#       mode: global
+
+
+#  fluentd:
+#    image: fluentd-cluster
+#    build: ./fluentd
+#    volumes:
+#    - ./fluentd/conf:/fluentd/etc
+#    ports:
+#    - "24224:24224"
+#    - "24224:24224/udp"
+#    networks:
+#      - back
+#    deploy:
+#       mode: global
+
+
+
+#  elasticsearch:
+#    image: elasticsearch:7.6.2
+#    restart: always
+#    environment:
+#    - discovery.type=single-node
+#    - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+#    expose:
+#    - 9200
+#    networks:
+#      - back
+
+
+#  kibana:
+#    image: kibana:7.6.2
+#    restart: always
+#    ports:
+#    - "5601:5601"
+#    networks:
+#      - back
+
+#########----Traefik----#######
+  traefik:
+    image: traefik:v2.2
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - 80:80
+      - 8080:8080
     volumes:
-    - ./fluentd/conf:/fluentd/etc
-    ports:
-    - "127.0.0.1:24224:24224"
-    - "127.0.0.1:24224:24224/udp"
-    depends_on:
-    - elasticsearch
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - back
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
 
-  elasticsearch:
-    image: elasticsearch:7.6.2
-    restart: always
-    environment:
-    - discovery.type=single-node
-    - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    expose:
-    - 9200
+#    logging:
+#      driver: "fluentd"
+#      options:
+#        fluentd-address: localhost:24224
+#        fluentd-async-connect: "true"
+#        tag: traefik
 
-  kibana:
-    image: kibana:7.6.2
-    restart: always
-    ports:
-    - "5601:5601"
 
+networks:
+  back:
+    external: true
